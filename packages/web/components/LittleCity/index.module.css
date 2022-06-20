@@ -1,0 +1,25 @@
+.viewport {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+
+    /* background: url(../asset/bg.jpg); */
+    background-size: 100% 100%;
+}
+
+.map {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    z-index: inherit;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    transform: scale(0.6, 0.6);
+    transform-origin: 100% 100%;
+}
+
+.mapMain {
+    width: 450px;
+    height: 300px;
+}
