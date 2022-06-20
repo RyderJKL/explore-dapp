@@ -158,8 +158,8 @@ const initMap = () => {
   });
 
   map = new maptalks.Map("map-main", {
-    // center: [-0.113049, 51.498568],
-    center: [-73.97332, 40.76462],
+    center: [-0.113049, 51.498568],
+    // center: [-116, 39],
     // center: [urlOpts.lng, urlOpts.lat],
     zoom: 16,
     baseLayer: mainLayer,
@@ -435,7 +435,7 @@ const initClay = (containerDom?: HTMLElement) => {
       this._advRenderer.render();
 
       return app
-        .createAmbientCubemapLight("./asset/Grand_Canyon_C.hdr", 0.2, 0.8, 1)
+        .createAmbientCubemapLight("asset/Grand_Canyon_C.hdr", 0.2, 0.8, 1)
         .then((result) => {
           const skybox = new plugin.Skybox({
             environmentMap: result.specular.cubemap,
