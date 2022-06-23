@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST={"little-big-city.tsx -> ../components/LittleCity":{"id":"little-big-city.tsx -> ../components/LittleCity","files":["static/chunks/components_LittleCity_index_tsx.js"]}}

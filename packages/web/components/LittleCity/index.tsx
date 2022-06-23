@@ -1,45 +1,53 @@
 import { useEffect, useRef } from "react";
 import styles from "./index.module.css";
 
-import * as claygl from "claygl";
-
 import { extrudeGeoJSON, extrudePolygon } from "geometry-extrude";
 import {
   application,
   plugin,
   geometry as builtinGeometries,
-  Texture2D,
   Geometry,
   Vector3,
 } from "claygl";
+
+const { VectorTile } = require("@mapbox/vector-tile");
+
 import Protobuf from "pbf";
-
-// // import * as dat from "dat.gui";
-import LRU from "lru-cache";
-import quickhull from "quickhull3d";
-import JSZip from "jszip";
-
-// // for PolyBool
-import "polybooljs";
-// // for vec2
-import vec2 from "./lib/vec2";
 
 // // for ClayAdvancedRenderer
 import ClayAdvancedRenderer from "claygl-advanced-renderer";
 
-// // for maptalks
-import * as maptalks from "maptalks";
-import "maptalks/dist/maptalks.css";
+import * as dat from "dat.gui";
+import LRU from "lru-cache";
+import JSZip from "jszip";
 
 import toOBJ from "./lib/toOBJ";
 import tessellate from "./lib/tessellate";
 import distortion from "./lib/distortion";
 
-const { VectorTile } = require("@mapbox/vector-tile");
+import quickhull from "quickhull3d";
+// // for PolyBool
+import "polybooljs";
+// // for vec2
+import vec2 from "./lib/vec2";
+
+// // for maptalks
+import * as maptalks from "maptalks";
+import "maptalks/dist/maptalks.css";
 
 const mvtCache = new LRU({ max: 50 });
-const DEFAULT_LNG = -74.0130345;
-const DEFAULT_LAT = 40.7063516;
+
+// 华尔街
+const DEFAULT_LNG = -73.985079;
+const DEFAULT_LAT = 40.747221;
+
+// 自由女神
+// const DEFAULT_LNG = -74.04447357976859;
+// const DEFAULT_LAT = 40.689277852470184;
+
+// // 中国尊
+// const DEFAULT_LNG = 116.46368504248937
+// const DEFAULT_LAT = 39.912743558838564
 
 const DEFAULT_CONFIG = {
   radius: 60,
@@ -95,7 +103,6 @@ function makeUrl() {
 
 const IS_TILE_STYLE = urlOpts.style === "tile";
 
-// const TILE_SIZE = IS_TILE_STYLE ? 512 : 256;
 const TILE_SIZE = 256;
 
 const config = Object.assign({}, DEFAULT_CONFIG);
@@ -104,49 +111,10 @@ try {
   Object.assign(config, JSON.parse(decodeURIComponent(urlOpts.config || "{}")));
 } catch (e) {}
 
-const actions = {
-  downloadOBJ: (() => {
-    let downloading = false;
-    return () => {
-      if (downloading) {
-        return;
-      }
-      const { obj, mtl } = toOBJ(app.scene, {
-        mtllib: "city",
-      });
-      const zip = new JSZip();
-      zip.file("city.obj", obj);
-      zip.file("city.mtl", mtl);
-      zip
-        .generateAsync({ type: "blob", compression: "DEFLATE" })
-        .then((content) => {
-          downloading = false;
-          saveAs(content, "city.zip");
-        })
-        .catch((e) => {
-          downloading = false;
-          console.error(e.toString());
-        });
-      // Behind all processing in case some errror happens.
-      downloading = true;
-    };
-  })(),
-  randomCloud: () => {
-    app.methods.generateClouds();
-  },
-  reset: () => {
-    Object.assign(config, DEFAULT_CONFIG);
-    ui.updateDisplay();
-    window.location = makeUrl();
-  },
-};
-
 const mvtUrlTpl = `https://tile.nextzen.org/tilezen/vector/v1/${TILE_SIZE}/all/{z}/{x}/{y}.mvt?api_key=EWFsMD1DSEysLDWd2hj2cw`;
 
-let app = null;
 let map = null;
 let mainLayer = null;
-
 const initMap = () => {
   if (mainLayer) return;
 
@@ -158,9 +126,7 @@ const initMap = () => {
   });
 
   map = new maptalks.Map("map-main", {
-    center: [-0.113049, 51.498568],
-    // center: [-116, 39],
-    // center: [urlOpts.lng, urlOpts.lat],
+    center: [urlOpts.lng, urlOpts.lat],
     zoom: 16,
     baseLayer: mainLayer,
   });
@@ -296,8 +262,10 @@ function unionRect(out, a, b) {
   out.height = Math.max(a.height + a.y, b.height + b.y) - y;
 }
 
-const width = 55;
-const height = 58.5;
+// const width = 55;
+const width = 100;
+// const height = 58.5;
+const height = 100;
 const earthRect = {
   x: -width / 2,
   y: -height / 2,
@@ -315,17 +283,146 @@ function getRectCoords(rect) {
   ];
 }
 
+let app = null;
+const configApp = (app) => {
+  function updateAll() {
+    if (!IS_TILE_STYLE) {
+      app.methods.updateEarthSphere();
+    }
+    app.methods.updateElements();
+  }
+
+  function updateUrlState() {
+    history.pushState("", "", makeUrl());
+  }
+
+  let timeout;
+  map.on("moveend", function () {
+    clearTimeout(timeout);
+    timeout = setTimeout(function () {
+      app.methods.updateElements();
+      updateUrlState();
+    }, 500);
+  });
+  map.on("moving", function () {
+    const center = map.getCenter();
+    urlOpts.lng = document.querySelector("#lng").value = center.x;
+    urlOpts.lat = document.querySelector("#lat").value = center.y;
+  });
+  map.on("zoomend", function () {
+    clearTimeout(timeout);
+    timeout = setTimeout(function () {
+      app.methods.updateElements();
+    }, 500);
+  });
+
+  Array.prototype.forEach.call(
+    document.querySelectorAll("#style-list li"),
+    (li) => {
+      li.addEventListener("click", () => {
+        urlOpts.style = li.className;
+        window.location = makeUrl();
+      });
+    }
+  );
+
+  document.querySelector("#locate").addEventListener("click", () => {
+    urlOpts.lng = +document.querySelector("#lng").value;
+    urlOpts.lat = +document.querySelector("#lat").value;
+    map.setCenter({ x: urlOpts.lng, y: urlOpts.lat });
+    app.methods.updateElements();
+    updateUrlState();
+  });
+
+  document.querySelector("#reset").addEventListener("click", () => {
+    urlOpts.lng = document.querySelector("#lng").value = DEFAULT_LNG;
+    urlOpts.lat = document.querySelector("#lat").value = DEFAULT_LAT;
+    map.setCenter({ x: urlOpts.lng, y: urlOpts.lat });
+    app.methods.updateElements();
+    updateUrlState();
+  });
+
+  const ui = new dat.GUI();
+  ui.add(actions, "reset");
+  if (!IS_TILE_STYLE) {
+    ui.add(config, "radius", 30, 100)
+      .step(1)
+      .onChange(updateAll)
+      .onFinishChange(updateUrlState);
+  }
+  ui.add(config, "rotateSpeed", -2, 2)
+    .step(0.01)
+    .onChange(app.methods.updateAutoRotate)
+    .onFinishChange(updateUrlState);
+  ui.add(config, "sky")
+    .onChange(app.methods.updateSky)
+    .onFinishChange(updateUrlState);
+
+  const earthFolder = ui.addFolder("Earth");
+  earthFolder
+    .add(config, "showEarth")
+    .onChange(app.methods.updateVisibility)
+    .onFinishChange(updateUrlState);
+  if (IS_TILE_STYLE) {
+    earthFolder
+      .add(config, "earthDepth", 1, 50)
+      .onChange(app.methods.updateEarthGround)
+      .onFinishChange(updateUrlState);
+  }
+  earthFolder
+    .addColor(config, "earthColor")
+    .onChange(app.methods.updateColor)
+    .onFinishChange(updateUrlState);
+
+  const buildingsFolder = ui.addFolder("Buildings");
+  buildingsFolder
+    .add(config, "showBuildings")
+    .onChange(app.methods.updateVisibility)
+    .onFinishChange(updateUrlState);
+  buildingsFolder
+    .addColor(config, "buildingsColor")
+    .onChange(app.methods.updateColor)
+    .onFinishChange(updateUrlState);
+
+  const roadsFolder = ui.addFolder("Roads");
+  roadsFolder
+    .add(config, "showRoads")
+    .onChange(app.methods.updateVisibility)
+    .onFinishChange(updateUrlState);
+  roadsFolder
+    .addColor(config, "roadsColor")
+    .onChange(app.methods.updateColor)
+    .onFinishChange(updateUrlState);
+
+  const waterFolder = ui.addFolder("Water");
+  waterFolder
+    .add(config, "showWater")
+    .onChange(app.methods.updateVisibility)
+    .onFinishChange(updateUrlState);
+  waterFolder
+    .addColor(config, "waterColor")
+    .onChange(app.methods.updateColor)
+    .onFinishChange(updateUrlState);
+
+  const cloudFolder = ui.addFolder("Cloud");
+  cloudFolder
+    .add(config, "showCloud")
+    .onChange(app.methods.updateVisibility)
+    .onFinishChange(updateUrlState);
+  cloudFolder
+    .addColor(config, "cloudColor")
+    .onChange(app.methods.updateColor)
+    .onFinishChange(updateUrlState);
+  cloudFolder.add(actions, "randomCloud");
+
+  ui.add(actions, "downloadOBJ");
+};
+
 const initClay = (containerDom?: HTMLElement) => {
-  console.log("initClay");
   if (!containerDom) return;
+  if (app) return;
 
-  console.log(containerDom, "containerDom");
-
-  // let camera: typeof Orthographic | typeof Perspective;
-  // let cube: Mesh;
-  // let mainLight: typeof Directional;
-
-  const app = claygl.application.create(containerDom, {
+  app = application.create(containerDom, {
     autoRender: false,
 
     devicePixelRatio: 1,
@@ -357,6 +454,7 @@ const initClay = (containerDom?: HTMLElement) => {
           },
         }
       );
+
       this._advRenderer.setShadow({
         kernelSize: 10,
         blurSize: 3,
@@ -367,6 +465,7 @@ const initClay = (containerDom?: HTMLElement) => {
         [0, 0, 0],
         IS_TILE_STYLE ? "ortho" : "perspective"
       );
+
       if (IS_TILE_STYLE) {
         camera.top = 50;
         camera.bottom = -50;
@@ -925,165 +1024,72 @@ const initClay = (containerDom?: HTMLElement) => {
     },
   });
 
+  configApp(app);
+
   return app;
 };
 
-const configApp = (app) => {
-  console.log(app, "app");
-  if (!app) return;
-
-  function updateAll() {
-    if (!IS_TILE_STYLE) {
-      app.methods.updateEarthSphere();
-    }
-    app.methods.updateElements();
-  }
-
-  function updateUrlState() {
-    history.pushState("", "", makeUrl());
-  }
-
-  let timeout;
-  map.on("moveend", function () {
-    clearTimeout(timeout);
-    timeout = setTimeout(function () {
-      app.methods.updateElements();
-      updateUrlState();
-    }, 500);
-  });
-  map.on("moving", function () {
-    const center = map.getCenter();
-    urlOpts.lng = document.querySelector("#lng").value = center.x;
-    urlOpts.lat = document.querySelector("#lat").value = center.y;
-  });
-  map.on("zoomend", function () {
-    clearTimeout(timeout);
-    timeout = setTimeout(function () {
-      app.methods.updateElements();
-    }, 500);
-  });
-
-  // Array.prototype.forEach.call(
-  //   document.querySelectorAll("#style-list li"),
-  //   (li) => {
-  //     li.addEventListener("click", () => {
-  //       urlOpts.style = li.className;
-  //       window.location = makeUrl();
-  //     });
-  //   }
-  // );
-
-  // document.querySelector("#locate").addEventListener("click", () => {
-  //   urlOpts.lng = +document.querySelector("#lng").value;
-  //   urlOpts.lat = +document.querySelector("#lat").value;
-  //   map.setCenter({ x: urlOpts.lng, y: urlOpts.lat });
-  //   app.methods.updateElements();
-  //   updateUrlState();
-  // });
-
-  // document.querySelector("#reset").addEventListener("click", () => {
-  //   urlOpts.lng = document.querySelector("#lng").value = DEFAULT_LNG;
-  //   urlOpts.lat = document.querySelector("#lat").value = DEFAULT_LAT;
-  //   map.setCenter({ x: urlOpts.lng, y: urlOpts.lat });
-  //   app.methods.updateElements();
-  //   updateUrlState();
-  // });
-
-  const ui = new dat.GUI();
-  console.log(ui, "fuck ui");
-  ui.add(actions, "reset");
-  if (!IS_TILE_STYLE) {
-    ui.add(config, "radius", 30, 100)
-      .step(1)
-      .onChange(updateAll)
-      .onFinishChange(updateUrlState);
-  }
-  ui.add(config, "rotateSpeed", -2, 2)
-    .step(0.01)
-    .onChange(app.methods.updateAutoRotate)
-    .onFinishChange(updateUrlState);
-  ui.add(config, "sky")
-    .onChange(app.methods.updateSky)
-    .onFinishChange(updateUrlState);
-
-  const earthFolder = ui.addFolder("Earth");
-  earthFolder
-    .add(config, "showEarth")
-    .onChange(app.methods.updateVisibility)
-    .onFinishChange(updateUrlState);
-  if (IS_TILE_STYLE) {
-    earthFolder
-      .add(config, "earthDepth", 1, 50)
-      .onChange(app.methods.updateEarthGround)
-      .onFinishChange(updateUrlState);
-  }
-  earthFolder
-    .addColor(config, "earthColor")
-    .onChange(app.methods.updateColor)
-    .onFinishChange(updateUrlState);
-
-  const buildingsFolder = ui.addFolder("Buildings");
-  buildingsFolder
-    .add(config, "showBuildings")
-    .onChange(app.methods.updateVisibility)
-    .onFinishChange(updateUrlState);
-  buildingsFolder
-    .addColor(config, "buildingsColor")
-    .onChange(app.methods.updateColor)
-    .onFinishChange(updateUrlState);
-
-  const roadsFolder = ui.addFolder("Roads");
-  roadsFolder
-    .add(config, "showRoads")
-    .onChange(app.methods.updateVisibility)
-    .onFinishChange(updateUrlState);
-  roadsFolder
-    .addColor(config, "roadsColor")
-    .onChange(app.methods.updateColor)
-    .onFinishChange(updateUrlState);
-
-  const waterFolder = ui.addFolder("Water");
-  waterFolder
-    .add(config, "showWater")
-    .onChange(app.methods.updateVisibility)
-    .onFinishChange(updateUrlState);
-  waterFolder
-    .addColor(config, "waterColor")
-    .onChange(app.methods.updateColor)
-    .onFinishChange(updateUrlState);
-
-  const cloudFolder = ui.addFolder("Cloud");
-  cloudFolder
-    .add(config, "showCloud")
-    .onChange(app.methods.updateVisibility)
-    .onFinishChange(updateUrlState);
-  cloudFolder
-    .addColor(config, "cloudColor")
-    .onChange(app.methods.updateColor)
-    .onFinishChange(updateUrlState);
-  cloudFolder.add(actions, "randomCloud");
-
-  ui.add(actions, "downloadOBJ");
+const actions = {
+  downloadOBJ: (() => {
+    let downloading = false;
+    return () => {
+      if (downloading) {
+        return;
+      }
+      const { obj, mtl } = toOBJ(app.scene, {
+        mtllib: "city",
+      });
+      const zip = new JSZip();
+      zip.file("city.obj", obj);
+      zip.file("city.mtl", mtl);
+      zip
+        .generateAsync({ type: "blob", compression: "DEFLATE" })
+        .then((content) => {
+          downloading = false;
+          saveAs(content, "city.zip");
+        })
+        .catch((e) => {
+          downloading = false;
+          console.error(e.toString());
+        });
+      // Behind all processing in case some errror happens.
+      downloading = true;
+    };
+  })(),
+  randomCloud: () => {
+    app.methods.generateClouds();
+  },
+  reset: () => {
+    Object.assign(config, DEFAULT_CONFIG);
+    ui.updateDisplay();
+    window.location = makeUrl();
+  },
 };
 
 export const LittleCity = () => {
   const viewport = useRef<HTMLDivElement>(null);
-  console.log(viewport, "box");
 
   useEffect(() => {
+    console.log("reredner....");
     if (!viewport.current) return;
-    console.log(viewport);
     initMap();
     initClay(viewport.current);
-    // app && configApp(app);
   }, [viewport]);
 
   return (
     <div>
-      <div id="viewport" ref={viewport} className={styles.viewport}/>
-      <div id="map" className={styles.map}>
-        <div id="location"></div>
-        <div id="map-main" className={styles.mapMain}></div>
+      <div id="viewport" ref={viewport} className={styles.viewport} />
+      <div id="map">
+        <h3>Pan the map to select a new area</h3>
+        <div id="location">
+          <label>LNG</label>
+          <input id="lng" type="text" value="-74.0130345" />
+          <label>LAT</label>
+          <input id="lat" type="text" value="40.7063516" />
+          <button id="reset">RESET</button>
+          <button id="locate">GO</button>
+        </div>
+        <div id="map-main"></div>
       </div>
     </div>
   );

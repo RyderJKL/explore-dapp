@@ -1,3 +1,4 @@
+
 import type { NextPage } from "next";
 import Script from "next/script";
 import TradingViewContainer from "../components/TradingView";

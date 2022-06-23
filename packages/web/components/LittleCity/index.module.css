@@ -5,7 +5,7 @@
     right: 0;
     bottom: 0;
 
-    /* background: url(../asset/bg.jpg); */
+    background: url(../../public/asset/bg.jpg);
     background-size: 100% 100%;
 }
 
