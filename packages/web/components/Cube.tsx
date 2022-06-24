@@ -1,3 +1,5 @@
+// @ts-ignore 
+// @ts-nocheck
 import { useEffect, useRef } from "react";
 import * as claygl from "claygl";
 import { Mesh, light, camera } from "claygl";
@@ -10,7 +12,6 @@ export const Cube = () => {
   const box = useRef<HTMLDivElement>(null);
 
   const initClay = (containerDom?: HTMLElement) => {
-    console.log(app, 'app')
 
     if (!containerDom) return;
     if (app) return;

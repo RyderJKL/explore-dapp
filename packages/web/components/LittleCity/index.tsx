@@ -1,5 +1,7 @@
+// @ts-nocheck
 import { useEffect, useRef } from "react";
 import styles from "./index.module.css";
+import { Button } from "@chakra-ui/react";
 
 import { extrudeGeoJSON, extrudePolygon } from "geometry-extrude";
 import {
@@ -10,8 +12,7 @@ import {
   Vector3,
 } from "claygl";
 
-const { VectorTile } = require("@mapbox/vector-tile");
-
+import { VectorTile } from "@mapbox/vector-tile";
 import Protobuf from "pbf";
 
 // // for ClayAdvancedRenderer
@@ -24,18 +25,20 @@ import JSZip from "jszip";
 import toOBJ from "./lib/toOBJ";
 import tessellate from "./lib/tessellate";
 import distortion from "./lib/distortion";
+import { saveAs } from "file-saver";
+// import { saveAs } from "./lib/FileSaver";
 
 import quickhull from "quickhull3d";
 // // for PolyBool
-import "polybooljs";
+import * as PolyBool from "polybooljs";
 // // for vec2
 import vec2 from "./lib/vec2";
 
 // // for maptalks
 import * as maptalks from "maptalks";
-import "maptalks/dist/maptalks.css";
+// import "maptalks/dist/maptalks.css";
 
-const mvtCache = new LRU({ max: 50 });
+const mvtCache = new LRU(50);
 
 // 华尔街
 const DEFAULT_LNG = -73.985079;
@@ -69,7 +72,7 @@ const DEFAULT_CONFIG = {
   showCloud: true,
   cloudColor: "#fff",
 
-  rotateSpeed: 0,
+  rotateSpeed: 0.45,
   sky: true,
 };
 
@@ -84,6 +87,7 @@ searchItems.forEach((item) => {
 });
 urlOpts.lng = urlOpts.lng || DEFAULT_LNG;
 urlOpts.lat = urlOpts.lat || DEFAULT_LAT;
+// urlOpts.style = "tile";
 
 function makeUrl() {
   const diffConfig = {};
@@ -115,8 +119,10 @@ const mvtUrlTpl = `https://tile.nextzen.org/tilezen/vector/v1/${TILE_SIZE}/all/{
 
 let map = null;
 let mainLayer = null;
+
 const initMap = () => {
   if (mainLayer) return;
+  console.log("initMap");
 
   mainLayer = new maptalks.TileLayer("base", {
     tileSize: [TILE_SIZE, TILE_SIZE],
@@ -283,7 +289,8 @@ function getRectCoords(rect) {
   ];
 }
 
-let app = null;
+window.clayApp = null;
+
 const configApp = (app) => {
   function updateAll() {
     if (!IS_TILE_STYLE) {
@@ -420,9 +427,10 @@ const configApp = (app) => {
 
 const initClay = (containerDom?: HTMLElement) => {
   if (!containerDom) return;
-  if (app) return;
+  if (window.clayApp) return;
 
-  app = application.create(containerDom, {
+  console.log("initClay");
+  window.clayApp = application.create(containerDom, {
     autoRender: false,
 
     devicePixelRatio: 1,
@@ -483,7 +491,7 @@ const initClay = (containerDom?: HTMLElement) => {
       this._elementsNodes = {};
       this._elementsMaterials = {};
 
-      this._diffuseTex = app.loadTextureSync("./asset/paper-detail.png", {
+      this._diffuseTex = app.loadTextureSync("asset/paper-detail.png", {
         anisotropic: 8,
       });
 
@@ -737,7 +745,8 @@ const initClay = (containerDom?: HTMLElement) => {
           return { boundingRect: poly.boundingRect };
         }
 
-        let tiles = mainLayer.getTiles().tileGrids[0].tiles;
+        console.log(mainLayer.getTiles(), "mainLayer tiles");
+        let tiles = mainLayer.getTiles().tileGrids[0]?.tiles || [];
         const subdomains = ["a", "b", "c"];
         if (IS_TILE_STYLE) {
           const center = map.getCenter();
@@ -1024,9 +1033,9 @@ const initClay = (containerDom?: HTMLElement) => {
     },
   });
 
-  configApp(app);
+  window.clayApp.methods.updateAutoRotate();
 
-  return app;
+  return window.clayApp;
 };
 
 const actions = {
@@ -1036,7 +1045,7 @@ const actions = {
       if (downloading) {
         return;
       }
-      const { obj, mtl } = toOBJ(app.scene, {
+      const { obj, mtl } = toOBJ(window.clayApp.scene, {
         mtllib: "city",
       });
       const zip = new JSZip();
@@ -1057,7 +1066,7 @@ const actions = {
     };
   })(),
   randomCloud: () => {
-    app.methods.generateClouds();
+    window.clayApp.methods.generateClouds();
   },
   reset: () => {
     Object.assign(config, DEFAULT_CONFIG);
@@ -1070,26 +1079,29 @@ export const LittleCity = () => {
   const viewport = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    console.log("reredner....");
     if (!viewport.current) return;
+    console.log("reredner....");
     initMap();
     initClay(viewport.current);
-  }, [viewport]);
+  }, []);
 
   return (
     <div>
       <div id="viewport" ref={viewport} className={styles.viewport} />
       <div id="map">
         <h3>Pan the map to select a new area</h3>
-        <div id="location">
+        {/* <div id="location">
           <label>LNG</label>
           <input id="lng" type="text" value="-74.0130345" />
           <label>LAT</label>
           <input id="lat" type="text" value="40.7063516" />
           <button id="reset">RESET</button>
           <button id="locate">GO</button>
-        </div>
+        </div> */}
         <div id="map-main"></div>
+      </div>
+      <div className="button-box">
+        <Button onClick={() => actions.downloadOBJ()}>download</Button>
       </div>
     </div>
   );

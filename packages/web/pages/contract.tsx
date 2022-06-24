@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from "react";
 import type { NextPage } from "next";
 import { ethers } from "ethers";
