@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useRef } from "react";
 import styles from "./index.module.css";
 import { Button } from "@chakra-ui/react";
@@ -26,7 +25,6 @@ import toOBJ from "./lib/toOBJ";
 import tessellate from "./lib/tessellate";
 import distortion from "./lib/distortion";
 import { saveAs } from "file-saver";
-// import { saveAs } from "./lib/FileSaver";
 
 import quickhull from "quickhull3d";
 // // for PolyBool
@@ -137,7 +135,7 @@ const initMap = () => {
     baseLayer: mainLayer,
   });
   map.setMinZoom(16);
-  map.setMaxZoom(16);
+  map.setMaxZoom(32);
 };
 
 const faces = ["pz", "px", "nz", "py", "nx", "ny"];
@@ -1074,6 +1072,11 @@ const actions = {
     window.location = makeUrl();
   },
 };
+
+export interface QueryParms {
+  lng?: string;
+  lat?: string;
+}
 
 export const LittleCity = () => {
   const viewport = useRef<HTMLDivElement>(null);
