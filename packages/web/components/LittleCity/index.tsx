@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useRef } from "react";
 import styles from "./index.module.css";
 import { Button } from "@chakra-ui/react";
@@ -39,16 +40,16 @@ import * as maptalks from "maptalks";
 const mvtCache = new LRU(50);
 
 // 华尔街
-const DEFAULT_LNG = -73.985079;
-const DEFAULT_LAT = 40.747221;
+// const DEFAULT_LNG = -73.985079;
+// const DEFAULT_LAT = 40.747221;
 
 // 自由女神
 // const DEFAULT_LNG = -74.04447357976859;
 // const DEFAULT_LAT = 40.689277852470184;
 
-// // 中国尊
-// const DEFAULT_LNG = 116.46368504248937
-// const DEFAULT_LAT = 39.912743558838564
+// 中国尊
+const DEFAULT_LNG = 116.46368504248937
+const DEFAULT_LAT = 39.912743558838564
 
 const DEFAULT_CONFIG = {
   radius: 60,
@@ -70,7 +71,7 @@ const DEFAULT_CONFIG = {
   showCloud: true,
   cloudColor: "#fff",
 
-  rotateSpeed: 0.45,
+  rotateSpeed: 0.2,
   sky: true,
 };
 
@@ -120,7 +121,6 @@ let mainLayer = null;
 
 const initMap = () => {
   if (mainLayer) return;
-  console.log("initMap");
 
   mainLayer = new maptalks.TileLayer("base", {
     tileSize: [TILE_SIZE, TILE_SIZE],
@@ -427,7 +427,6 @@ const initClay = (containerDom?: HTMLElement) => {
   if (!containerDom) return;
   if (window.clayApp) return;
 
-  console.log("initClay");
   window.clayApp = application.create(containerDom, {
     autoRender: false,
 
@@ -1032,8 +1031,24 @@ const initClay = (containerDom?: HTMLElement) => {
   });
 
   window.clayApp.methods.updateAutoRotate();
+  configApp(window.clayApp);
 
   return window.clayApp;
+};
+
+window.downloadOBJ = async () => {
+  const { obj, mtl } = toOBJ(window.clayApp.scene, {
+    mtllib: "city",
+  });
+  const zip = new JSZip();
+  zip.file("city.obj", obj);
+  zip.file("city.mtl", mtl);
+
+  const result = await zip.generateAsync({
+    type: "blob",
+    compression: "DEFLATE",
+  });
+  return result;
 };
 
 const actions = {
@@ -1059,7 +1074,6 @@ const actions = {
           downloading = false;
           console.error(e.toString());
         });
-      // Behind all processing in case some errror happens.
       downloading = true;
     };
   })(),
@@ -1083,7 +1097,6 @@ export const LittleCity = () => {
 
   useEffect(() => {
     if (!viewport.current) return;
-    console.log("reredner....");
     initMap();
     initClay(viewport.current);
   }, []);
@@ -1093,18 +1106,23 @@ export const LittleCity = () => {
       <div id="viewport" ref={viewport} className={styles.viewport} />
       <div id="map">
         <h3>Pan the map to select a new area</h3>
-        {/* <div id="location">
+        <div id="location">
           <label>LNG</label>
           <input id="lng" type="text" value="-74.0130345" />
           <label>LAT</label>
           <input id="lat" type="text" value="40.7063516" />
           <button id="reset">RESET</button>
           <button id="locate">GO</button>
-        </div> */}
+        </div>
         <div id="map-main"></div>
       </div>
       <div className="button-box">
-        <Button onClick={() => actions.downloadOBJ()}>download</Button>
+        <Button
+          onClick={() => actions.downloadOBJ()}
+          onKeyDown={(e) => console.log(e)}
+        >
+          download
+        </Button>
       </div>
     </div>
   );
