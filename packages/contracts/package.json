@@ -4,6 +4,9 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
-    "@openzeppelin/contracts": "^4.6.0"
+    "@openzeppelin/contracts": "^4.7.2"
+  },
+  "devDependencies": {
+    "rxjs": "^7.5.6"
   }
 }

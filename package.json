@@ -16,6 +16,7 @@
     "pbf": "^3.2.1",
     "polybooljs": "^1.2.0",
     "quickhull3d": "^2.0.5",
+    "wagmi": "^0.6.0",
     "web": "file:packages/web"
   },
   "devDependencies": {
@@ -43,7 +44,7 @@
     "eslint-plugin-prettier": "^3.4.1",
     "eslint-plugin-promise": "^5.2.0",
     "ethereum-waffle": "^3.4.4",
-    "ethers": "^5.6.8",
+    "ethers": "^5.6.9",
     "hardhat": "^2.9.9",
     "hardhat-gas-reporter": "^1.0.8",
     "prettier": "^2.7.0",
